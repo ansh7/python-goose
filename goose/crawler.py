@@ -95,7 +95,7 @@ class Crawler(object):
             # image handeling
             if self.config.enable_image_fetching:
                 image_extractor = self.get_image_extractor(article)
-                article.top_image = image_extractor.get_best_image(article.raw_doc, article.top_node)
+                article.top_image, article.images = image_extractor.get_best_image(article.raw_doc, article.top_node)
             # post cleanup
             article.top_node = extractor.post_cleanup(article.top_node)
             # clean_text

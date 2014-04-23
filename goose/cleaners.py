@@ -84,8 +84,7 @@ class DocumentCleaner(object):
         # in case it matches an unwanted class all the document
         # will be empty
         elements = self.parser.getElementsByTag(doc, tag="body")
-        if elements:
-            self.parser.delAttribute(elements[0], attr="class")
+        self.parser.delAttribute(elements[0], attr="class")
         return doc
 
     def clean_article_tags(self, doc):
