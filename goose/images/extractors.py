@@ -74,25 +74,25 @@ class UpgradedImageIExtractor(ImageExtractor):
 
         # this lists all the known bad button names that we have
         self.badimages_names_re = re.compile(
-            ".html|.gif|.ico|button|twitter.jpg|facebook.jpg|ap_buy_photo"
+            ".html|.ico|button|twitter.jpg|facebook.jpg|ap_buy_photo"
             "|digg.jpg|digg.png|delicious.png|facebook.png|reddit.jpg"
             "|doubleclick|diggthis|diggThis|adserver|/ads/|ec.atdmt.com"
             "|mediaplex.com|adsatt|view.atdmt"
         )
 
     def get_best_image(self, doc, topNode):
-        image = self.check_known_elements()
-        if image:
-            return image
+        # image = self.check_known_elements()
+        # if image:
+        #     return image
 
-        image = self.check_large_images(topNode, 0, 0)
+        image, images = self.check_large_images(topNode, 0, 0)
         if image:
-            return image
+            return image, images
 
         image = self.check_meta_tag()
         if image:
-            return image
-        return Image()
+            return image, []
+        return Image(), []
 
     def check_meta_tag(self):
         # check link tag
@@ -120,9 +120,12 @@ class UpgradedImageIExtractor(ImageExtractor):
            and possibly things like color density
         """
         good_images = self.get_image_candidates(node)
-
+        scored_images_list = []
+        main_image = None
         if good_images:
             scored_images = self.fetch_images(good_images, parent_depth_level)
+            scored_images_list = scored_images.items()
+            
             if scored_images:
                 highscore_image = sorted(scored_images.items(),
                                         key=lambda x: x[1], reverse=True)[0][0]
@@ -133,14 +136,17 @@ class UpgradedImageIExtractor(ImageExtractor):
                 main_image.extraction_type = "bigimage"
                 main_image.confidence_score = 100 / len(scored_images) \
                                     if len(scored_images) > 0 else 0
-                return main_image
+                #return main_image, scored_images
 
         depth_obj = self.get_depth_level(node, parent_depth_level, sibling_depth_level)
         if depth_obj:
-            return self.check_large_images(depth_obj.node,
+            image_temp, scored_images_temp = self.check_large_images(depth_obj.node,
                             depth_obj.parent_depth, depth_obj.sibling_depth)
+            if not main_image:
+                main_image = image_temp
+            scored_images_list = scored_images_list + scored_images_temp
 
-        return None
+        return main_image, scored_images_list
 
     def get_depth_level(self, node, parent_depth, sibling_depth):
         MAX_PARENT_DEPTH = 2
@@ -174,7 +180,7 @@ class UpgradedImageIExtractor(ImageExtractor):
         total_score = float(0.0)
         cnt = float(1.0)
         MIN_WIDTH = 50
-        for image in images[:30]:
+        for image in images:
             src = self.parser.getAttribute(image, attr='src')
             src = self.build_image_path(src)
             local_image = self.get_local_image(src)
@@ -183,7 +189,7 @@ class UpgradedImageIExtractor(ImageExtractor):
             src = local_image.src
             file_extension = local_image.file_extension
 
-            if file_extension != '.gif' or file_extension != 'NA':
+            if file_extension != 'NA':
                 if (depth_level >= 1 and local_image.width > 300) or depth_level < 1:
                     if not self.is_banner_dimensions(width, height):
                         if width > MIN_WIDTH:
@@ -265,13 +271,10 @@ class UpgradedImageIExtractor(ImageExtractor):
         of bad image files we know of like buttons, etc...
         """
         src = self.parser.getAttribute(imageNode, attr='src')
-
         if not src:
             return False
-
         if self.badimages_names_re.search(src):
             return False
-
         return True
 
     def get_image_candidates(self, node):
